@@ -1,0 +1,99 @@
+<template>
+    <lightning-card title="Employee Leave & Attendance Hub" icon-name="standard:user">
+        <div class="slds-m-around_medium">
+            <!-- Loading Spinner -->
+            <template if:true={isLoading}>
+                <lightning-spinner alternative-text="Loading..." size="medium"></lightning-spinner>
+            </template>
+
+            <!-- Employee Info Header -->
+            <template if:true={employeeRecord}>
+                <div class="slds-box slds-theme_shade slds-m-bottom_medium">
+                    <div class="slds-grid slds-wrap">
+                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                            <h2><strong>Welcome, {employeeRecord.Name}</strong> ({employeeRecord.Employee_Id__c})</h2>
+                            <p class="slds-text-color_weak">Role: {employeeRecord.Role__c} | Dept: {departmentName}</p>
+                        </div>
+                        <div class="slds-col slds-size_1-of-1 slds-medium-size_2-of-3 slds-text-align_right">
+                            <template if:true={todayAttendance}>
+                                <lightning-badge label={todayAttendanceStatusLabel} class="slds-m-right_small"></lightning-badge>
+                            </template>
+                            <template if:false={todayAttendance}>
+                                <lightning-button label="Check In Now" variant="brand" icon-name="utility:clock" onclick={handleCheckIn} class="slds-m-right_small"></lightning-button>
+                            </template>
+                            <lightning-button label="Apply For Leave" variant="neutral" icon-name="utility:event" onclick={openApplyLeaveModal}></lightning-button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Leave Balances Section -->
+            <h3 class="slds-text-heading_small slds-m-bottom_small">My Leave Balances ({currentYear})</h3>
+            <div class="slds-grid slds-wrap slds-gutters slds-m-bottom_large">
+                <template for:each={leaveBalances} for:item="bal">
+                    <div key={bal.Id} class="slds-col slds-size_1-of-1 slds-medium-size_1-of-3">
+                        <div class="balance-card slds-box slds-text-align_center">
+                            <div class="slds-text-heading_medium balance-title">{bal.Leave_Type__c}</div>
+                            <div class="remaining-days">{bal.Remaining_Days__c} <span class="days-label">Days Left</span></div>
+                            <div class="slds-text-color_weak slds-m-top_x-small">Allocated: {bal.Allocated_Days__c} | Used: {bal.Used_Days__c}</div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Recent Leave Requests Table -->
+            <h3 class="slds-text-heading_small slds-m-bottom_small">Recent Leave Requests</h3>
+            <template if:true={recentRequests.length}>
+                <lightning-datatable
+                    key-field="Id"
+                    data={recentRequests}
+                    columns={columns}
+                    hide-checkbox-column>
+                </lightning-datatable>
+            </template>
+            <template if:false={recentRequests.length}>
+                <p class="slds-text-color_weak slds-m-vertical_small">No leave requests found.</p>
+            </template>
+        </div>
+    </lightning-card>
+
+    <!-- Apply Leave Modal -->
+    <template if:true={isModalOpen}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" title="Close" onclick={closeApplyLeaveModal}>
+                        <lightning-icon icon-name="utility:close" alternative-text="close" size="small"></lightning-icon>
+                    </button>
+                    <h2 class="slds-modal__title slds-hyphenate">Apply for Leave</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <lightning-combobox
+                        name="leaveType"
+                        label="Leave Type"
+                        value={leaveType}
+                        options={leaveTypeOptions}
+                        onchange={handleInputChange}
+                        required>
+                    </lightning-combobox>
+
+                    <div class="slds-grid slds-gutters slds-m-top_small">
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input type="date" name="startDate" label="Start Date" value={startDate} onchange={handleInputChange} required></lightning-input>
+                        </div>
+                        <div class="slds-col slds-size_1-of-2">
+                            <lightning-input type="date" name="endDate" label="End Date" value={endDate} onchange={handleInputChange} required></lightning-input>
+                        </div>
+                    </div>
+
+                    <lightning-textarea name="reason" label="Reason" value={reason} onchange={handleInputChange} class="slds-m-top_small" required></lightning-textarea>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Cancel" onclick={closeApplyLeaveModal} class="slds-m-right_x-small"></lightning-button>
+                    <lightning-button label="Submit Request" variant="brand" onclick={handleSubmitLeave}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>

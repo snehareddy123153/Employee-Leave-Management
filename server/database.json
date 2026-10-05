@@ -1,0 +1,314 @@
+{
+  "departments": [
+    {
+      "id": "dept-101",
+      "name": "Engineering",
+      "departmentCode": "ENG",
+      "location": "Building A - Floor 3",
+      "createdAt": "2026-10-05T15:45:28.026Z"
+    },
+    {
+      "id": "dept-102",
+      "name": "Human Resources",
+      "departmentCode": "HR",
+      "location": "Building B - Floor 1",
+      "createdAt": "2026-10-05T15:45:28.027Z"
+    },
+    {
+      "id": "dept-103",
+      "name": "Sales & Marketing",
+      "departmentCode": "SALES",
+      "location": "Building A - Floor 2",
+      "createdAt": "2026-10-05T15:45:28.027Z"
+    }
+  ],
+  "employees": [
+    {
+      "id": "emp-001",
+      "employeeId": "EMP-1001",
+      "fullName": "Sarah Jenkins (HR)",
+      "email": "hr@employeehub.com",
+      "passwordHash": "$2a$10$8Qu3Kbib4KItXEVoNlsCjuRoe2JkC6Jo79J8gvtJ/OQWIAPuSQ4LC",
+      "phone": "+1 555-0101",
+      "departmentId": "dept-102",
+      "managerId": null,
+      "joiningDate": "2022-01-15",
+      "employmentStatus": "Active",
+      "role": "HR_ADMIN",
+      "createdAt": "2026-10-05T15:45:28.028Z"
+    },
+    {
+      "id": "emp-002",
+      "employeeId": "EMP-1002",
+      "fullName": "Alex Vance (Manager)",
+      "email": "manager@employeehub.com",
+      "passwordHash": "$2a$10$8Qu3Kbib4KItXEVoNlsCjuRoe2JkC6Jo79J8gvtJ/OQWIAPuSQ4LC",
+      "phone": "+1 555-0102",
+      "departmentId": "dept-101",
+      "managerId": "emp-001",
+      "joiningDate": "2022-03-01",
+      "employmentStatus": "Active",
+      "role": "MANAGER",
+      "createdAt": "2026-10-05T15:45:28.028Z"
+    },
+    {
+      "id": "emp-003",
+      "employeeId": "EMP-1003",
+      "fullName": "John Doe (Employee)",
+      "email": "employee@employeehub.com",
+      "passwordHash": "$2a$10$8Qu3Kbib4KItXEVoNlsCjuRoe2JkC6Jo79J8gvtJ/OQWIAPuSQ4LC",
+      "phone": "+1 555-0103",
+      "departmentId": "dept-101",
+      "managerId": "emp-002",
+      "joiningDate": "2023-06-10",
+      "employmentStatus": "Active",
+      "role": "EMPLOYEE",
+      "createdAt": "2026-10-05T15:45:28.028Z"
+    },
+    {
+      "id": "emp-004",
+      "employeeId": "EMP-1004",
+      "fullName": "Emily Watson",
+      "email": "emily.watson@employeehub.com",
+      "passwordHash": "$2a$10$8Qu3Kbib4KItXEVoNlsCjuRoe2JkC6Jo79J8gvtJ/OQWIAPuSQ4LC",
+      "phone": "+1 555-0104",
+      "departmentId": "dept-101",
+      "managerId": "emp-002",
+      "joiningDate": "2023-08-01",
+      "employmentStatus": "Active",
+      "role": "EMPLOYEE",
+      "createdAt": "2026-10-05T15:45:28.029Z"
+    },
+    {
+      "id": "emp-005",
+      "employeeId": "EMP-1005",
+      "fullName": "Michael Brown",
+      "email": "michael.brown@employeehub.com",
+      "passwordHash": "$2a$10$8Qu3Kbib4KItXEVoNlsCjuRoe2JkC6Jo79J8gvtJ/OQWIAPuSQ4LC",
+      "phone": "+1 555-0105",
+      "departmentId": "dept-103",
+      "managerId": "emp-001",
+      "joiningDate": "2024-01-10",
+      "employmentStatus": "Active",
+      "role": "EMPLOYEE",
+      "createdAt": "2026-10-05T15:45:28.029Z"
+    }
+  ],
+  "leave_balances": [
+    {
+      "id": "lb-emp-001-casual",
+      "employeeId": "emp-001",
+      "leaveType": "Casual Leave",
+      "allocatedDays": 12,
+      "usedDays": 2,
+      "remainingDays": 10,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.029Z"
+    },
+    {
+      "id": "lb-emp-001-sick",
+      "employeeId": "emp-001",
+      "leaveType": "Sick Leave",
+      "allocatedDays": 10,
+      "usedDays": 1,
+      "remainingDays": 9,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.030Z"
+    },
+    {
+      "id": "lb-emp-001-earned",
+      "employeeId": "emp-001",
+      "leaveType": "Earned Leave",
+      "allocatedDays": 15,
+      "usedDays": 0,
+      "remainingDays": 15,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.031Z"
+    },
+    {
+      "id": "lb-emp-002-casual",
+      "employeeId": "emp-002",
+      "leaveType": "Casual Leave",
+      "allocatedDays": 12,
+      "usedDays": 2,
+      "remainingDays": 10,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.032Z"
+    },
+    {
+      "id": "lb-emp-002-sick",
+      "employeeId": "emp-002",
+      "leaveType": "Sick Leave",
+      "allocatedDays": 10,
+      "usedDays": 1,
+      "remainingDays": 9,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.032Z"
+    },
+    {
+      "id": "lb-emp-002-earned",
+      "employeeId": "emp-002",
+      "leaveType": "Earned Leave",
+      "allocatedDays": 15,
+      "usedDays": 0,
+      "remainingDays": 15,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.033Z"
+    },
+    {
+      "id": "lb-emp-003-casual",
+      "employeeId": "emp-003",
+      "leaveType": "Casual Leave",
+      "allocatedDays": 12,
+      "usedDays": 2,
+      "remainingDays": 10,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.034Z"
+    },
+    {
+      "id": "lb-emp-003-sick",
+      "employeeId": "emp-003",
+      "leaveType": "Sick Leave",
+      "allocatedDays": 10,
+      "usedDays": 1,
+      "remainingDays": 9,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.034Z"
+    },
+    {
+      "id": "lb-emp-003-earned",
+      "employeeId": "emp-003",
+      "leaveType": "Earned Leave",
+      "allocatedDays": 15,
+      "usedDays": 0,
+      "remainingDays": 15,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.034Z"
+    },
+    {
+      "id": "lb-emp-004-casual",
+      "employeeId": "emp-004",
+      "leaveType": "Casual Leave",
+      "allocatedDays": 12,
+      "usedDays": 2,
+      "remainingDays": 10,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.035Z"
+    },
+    {
+      "id": "lb-emp-004-sick",
+      "employeeId": "emp-004",
+      "leaveType": "Sick Leave",
+      "allocatedDays": 10,
+      "usedDays": 1,
+      "remainingDays": 9,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.035Z"
+    },
+    {
+      "id": "lb-emp-004-earned",
+      "employeeId": "emp-004",
+      "leaveType": "Earned Leave",
+      "allocatedDays": 15,
+      "usedDays": 0,
+      "remainingDays": 15,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.036Z"
+    },
+    {
+      "id": "lb-emp-005-casual",
+      "employeeId": "emp-005",
+      "leaveType": "Casual Leave",
+      "allocatedDays": 12,
+      "usedDays": 2,
+      "remainingDays": 10,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.036Z"
+    },
+    {
+      "id": "lb-emp-005-sick",
+      "employeeId": "emp-005",
+      "leaveType": "Sick Leave",
+      "allocatedDays": 10,
+      "usedDays": 1,
+      "remainingDays": 9,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.037Z"
+    },
+    {
+      "id": "lb-emp-005-earned",
+      "employeeId": "emp-005",
+      "leaveType": "Earned Leave",
+      "allocatedDays": 15,
+      "usedDays": 0,
+      "remainingDays": 15,
+      "year": 2026,
+      "createdAt": "2026-10-05T15:45:28.037Z"
+    }
+  ],
+  "leave_requests": [
+    {
+      "id": "req-101",
+      "employeeId": "emp-003",
+      "leaveType": "Casual Leave",
+      "startDate": "2026-10-15",
+      "endDate": "2026-10-16",
+      "numberOfDays": 2,
+      "reason": "Family function attendance",
+      "status": "Pending",
+      "approverId": "emp-002",
+      "managerComments": null,
+      "createdAt": "2026-10-05T15:45:28.037Z"
+    },
+    {
+      "id": "req-102",
+      "employeeId": "emp-004",
+      "leaveType": "Sick Leave",
+      "startDate": "2026-10-02",
+      "endDate": "2026-10-02",
+      "numberOfDays": 1,
+      "reason": "Doctor appointment",
+      "status": "Approved",
+      "approverId": "emp-002",
+      "managerComments": "Approved. Take care!",
+      "createdAt": "2026-10-05T15:45:28.038Z"
+    },
+    {
+      "id": "req-103",
+      "employeeId": "emp-003",
+      "leaveType": "Earned Leave",
+      "startDate": "2026-09-01",
+      "endDate": "2026-09-05",
+      "numberOfDays": 5,
+      "reason": "Annual vacation",
+      "status": "Approved",
+      "approverId": "emp-002",
+      "managerComments": "Approved. Enjoy!",
+      "createdAt": "2026-10-05T15:45:28.038Z"
+    }
+  ],
+  "attendances": [
+    {
+      "id": "att-101",
+      "employeeId": "emp-003",
+      "date": "2026-10-05",
+      "checkIn": "2026-10-05 09:15:00",
+      "checkOut": "2026-10-05 17:30:00",
+      "status": "Present",
+      "workingHours": 8.25,
+      "remarks": "On time",
+      "createdAt": "2026-10-05T15:45:28.039Z"
+    },
+    {
+      "id": "att-102",
+      "employeeId": "emp-004",
+      "date": "2026-10-05",
+      "checkIn": "2026-10-05 09:45:00",
+      "checkOut": "2026-10-05 18:00:00",
+      "status": "Late",
+      "workingHours": 8.25,
+      "remarks": "Traffic delay",
+      "createdAt": "2026-10-05T15:45:28.040Z"
+    }
+  ]
+}
