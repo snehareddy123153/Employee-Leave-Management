@@ -170,13 +170,23 @@ API.interceptors.response.use(
         if (method === 'post') {
           const storedUser = localStorage.getItem('employeehub_mock_user');
           const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
+          
+          let numDays = body.numberOfDays || 1;
+          if (body.startDate && body.endDate) {
+            const start = new Date(body.startDate);
+            const end = new Date(body.endDate);
+            const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
+            if (diff > 0) numDays = diff;
+          }
+
           const newReq = {
             id: `req-${Date.now()}`,
             employeeId: currentUser.id,
+            employeeName: currentUser.fullName || 'John Doe (Employee)',
             leaveType: body.leaveType || 'Casual Leave',
-            startDate: body.startDate,
-            endDate: body.endDate,
-            numberOfDays: body.numberOfDays || 1,
+            startDate: body.startDate || new Date().toISOString().split('T')[0],
+            endDate: body.endDate || new Date().toISOString().split('T')[0],
+            numberOfDays: numDays,
             reason: body.reason || 'Leave request',
             status: 'Pending',
             createdAt: new Date().toISOString()
