@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Seed dataset for static hosting fallback (e.g. GitHub Pages)
+// Default mock database seed for static hosting (e.g. GitHub Pages)
 const getStorageData = () => {
   const stored = localStorage.getItem('employeehub_mock_db');
   if (stored) {
@@ -10,7 +10,7 @@ const getStorageData = () => {
         return parsed;
       }
     } catch (e) {
-      // Fallback if parsing fails
+      // Fallback
     }
   }
 
@@ -57,30 +57,32 @@ const saveStorageData = (data: any) => {
   localStorage.setItem('employeehub_mock_db', JSON.stringify(data));
 };
 
-const handleMockRequest = async (config: any) => {
-  const url = config.url || '';
-  const method = (config.method || 'get').toLowerCase();
-  
-  let body: any = {};
-  if (config.data) {
-    if (typeof config.data === 'string') {
-      try {
-        body = JSON.parse(config.data);
-      } catch (e) {
-        body = {};
-      }
-    } else if (typeof config.data === 'object') {
-      body = config.data;
-    }
-  }
+const realAxios = axios.create({
+  baseURL: '/api',
+});
 
+realAxios.interceptors.request.use((config) => {
+  const token = localStorage.getItem('employeehub_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+const isStaticHost = () => {
+  return window.location.hostname.includes('github.io') || window.location.hostname !== 'localhost';
+};
+
+// In-memory mock router for static hosting (GitHub Pages)
+const handleMockRouter = (method: string, url: string, data?: any): Promise<any> => {
+  const cleanUrl = url.toLowerCase();
+  const cleanMethod = method.toLowerCase();
   const db = getStorageData();
 
   // Auth Login
-  if (url.includes('/auth/login') && method === 'post') {
-    const inputEmail = (body.email || '').trim().toLowerCase();
+  if (cleanUrl.includes('/auth/login')) {
+    const inputEmail = (data?.email || '').trim().toLowerCase();
     let emp = db.employees.find((e: any) => e.email.toLowerCase() === inputEmail);
-    
     if (!emp) {
       if (inputEmail.includes('hr')) {
         emp = db.employees.find((e: any) => e.role === 'HR_ADMIN');
@@ -90,67 +92,39 @@ const handleMockRequest = async (config: any) => {
         emp = db.employees.find((e: any) => e.role === 'EMPLOYEE') || db.employees[2];
       }
     }
-
     const token = `mock-token-${emp.id}`;
     localStorage.setItem('employeehub_mock_user', JSON.stringify(emp));
-    return {
-      data: {
-        token,
-        user: emp
-      },
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config
-    };
+    return Promise.resolve({ data: { token, user: emp }, status: 200, statusText: 'OK' });
   }
 
   // Auth Me
-  if (url.includes('/auth/me') && method === 'get') {
+  if (cleanUrl.includes('/auth/me')) {
     const storedUser = localStorage.getItem('employeehub_mock_user');
     const user = storedUser ? JSON.parse(storedUser) : db.employees[2];
-    return {
-      data: { user },
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config
-    };
+    return Promise.resolve({ data: { user }, status: 200, statusText: 'OK' });
   }
 
   // Leave Balances
-  if (url.includes('/leave/balances')) {
+  if (cleanUrl.includes('/leave/balances')) {
     const storedUser = localStorage.getItem('employeehub_mock_user');
     const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
     const balances = db.leave_balances.filter((b: any) => b.employeeId === currentUser.id);
-    return {
-      data: balances.length > 0 ? balances : db.leave_balances.slice(0, 3),
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config
-    };
+    return Promise.resolve({ data: balances.length > 0 ? balances : db.leave_balances.slice(0, 3), status: 200, statusText: 'OK' });
   }
 
   // Leave Requests / Leave Apply
-  if (url.includes('/leave/requests') || url.includes('/leave/apply')) {
-    if (method === 'get') {
-      return {
-        data: db.leave_requests,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config
-      };
+  if (cleanUrl.includes('/leave/requests') || cleanUrl.includes('/leave/apply')) {
+    if (cleanMethod === 'get') {
+      return Promise.resolve({ data: db.leave_requests, status: 200, statusText: 'OK' });
     }
-    if (method === 'post') {
+    if (cleanMethod === 'post') {
       const storedUser = localStorage.getItem('employeehub_mock_user');
       const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
-      
-      let numDays = body.numberOfDays || 1;
-      if (body.startDate && body.endDate) {
-        const start = new Date(body.startDate);
-        const end = new Date(body.endDate);
+
+      let numDays = data?.numberOfDays || 1;
+      if (data?.startDate && data?.endDate) {
+        const start = new Date(data.startDate);
+        const end = new Date(data.endDate);
         const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
         if (diff > 0) numDays = diff;
       }
@@ -159,11 +133,11 @@ const handleMockRequest = async (config: any) => {
         id: `req-${Date.now()}`,
         employeeId: currentUser.id,
         employeeName: currentUser.fullName || 'John Doe (Employee)',
-        leaveType: body.leaveType || 'Casual Leave',
-        startDate: body.startDate || new Date().toISOString().split('T')[0],
-        endDate: body.endDate || new Date().toISOString().split('T')[0],
+        leaveType: data?.leaveType || 'Casual Leave',
+        startDate: data?.startDate || new Date().toISOString().split('T')[0],
+        endDate: data?.endDate || new Date().toISOString().split('T')[0],
         numberOfDays: numDays,
-        reason: body.reason || 'Leave request',
+        reason: data?.reason || 'Leave request',
         status: 'Pending',
         createdAt: new Date().toISOString()
       };
@@ -171,36 +145,24 @@ const handleMockRequest = async (config: any) => {
       db.leave_requests.unshift(newReq);
       saveStorageData(db);
 
-      return {
-        data: newReq,
-        status: 201,
-        statusText: 'Created',
-        headers: {},
-        config
-      };
+      return Promise.resolve({ data: newReq, status: 201, statusText: 'Created' });
     }
-    if (method === 'patch') {
-      const reqId = url.split('/leave/requests/')[1]?.split('/')[0];
-      const action = url.includes('/approve') ? 'Approved' : url.includes('/reject') ? 'Rejected' : 'Cancelled';
+    if (cleanMethod === 'patch') {
+      const reqId = cleanUrl.split('/leave/requests/')[1]?.split('/')[0];
+      const action = cleanUrl.includes('/approve') ? 'Approved' : cleanUrl.includes('/reject') ? 'Rejected' : 'Cancelled';
       const targetReq = db.leave_requests.find((r: any) => r.id === reqId);
       if (targetReq) {
         targetReq.status = action;
-        if (body.comments) targetReq.managerComments = body.comments;
+        if (data?.comments) targetReq.managerComments = data.comments;
         saveStorageData(db);
       }
-      return {
-        data: targetReq || { status: action },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config
-      };
+      return Promise.resolve({ data: targetReq || { status: action }, status: 200, statusText: 'OK' });
     }
   }
 
   // Attendance
-  if (url.includes('/attendance')) {
-    if (url.includes('/check-in') && method === 'post') {
+  if (cleanUrl.includes('/attendance')) {
+    if (cleanUrl.includes('/check-in') && cleanMethod === 'post') {
       const storedUser = localStorage.getItem('employeehub_mock_user');
       const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
       const newAtt = {
@@ -210,19 +172,13 @@ const handleMockRequest = async (config: any) => {
         checkIn: new Date().toLocaleTimeString(),
         status: 'Present',
         workingHours: 0,
-        remarks: body.remarks || 'Checked in via Web App'
+        remarks: data?.remarks || 'Checked in via Web App'
       };
       db.attendances.unshift(newAtt);
       saveStorageData(db);
-      return {
-        data: newAtt,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config
-      };
+      return Promise.resolve({ data: newAtt, status: 200, statusText: 'OK' });
     }
-    if (url.includes('/check-out') && method === 'post') {
+    if (cleanUrl.includes('/check-out') && cleanMethod === 'post') {
       const storedUser = localStorage.getItem('employeehub_mock_user');
       const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
       const todayStr = new Date().toISOString().split('T')[0];
@@ -232,99 +188,57 @@ const handleMockRequest = async (config: any) => {
         att.workingHours = 8;
         saveStorageData(db);
       }
-      return {
-        data: att || { status: 'Checked Out' },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config
-      };
+      return Promise.resolve({ data: att || { status: 'Checked Out' }, status: 200, statusText: 'OK' });
     }
-    if (url.includes('/today')) {
+    if (cleanUrl.includes('/today')) {
       const storedUser = localStorage.getItem('employeehub_mock_user');
       const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
       const todayAtt = db.attendances.find((a: any) => a.employeeId === currentUser.id) || null;
-      return {
-        data: todayAtt,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config
-      };
+      return Promise.resolve({ data: todayAtt, status: 200, statusText: 'OK' });
     }
-    return {
-      data: db.attendances,
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config
-    };
+    return Promise.resolve({ data: db.attendances, status: 200, statusText: 'OK' });
   }
 
   // Departments
-  if (url.includes('/departments')) {
-    if (method === 'post') {
+  if (cleanUrl.includes('/departments')) {
+    if (cleanMethod === 'post') {
       const newDept = {
         id: `dept-${Date.now()}`,
-        name: body.name || 'New Department',
-        departmentCode: body.departmentCode || 'DEPT',
-        location: body.location || 'Main Building'
+        name: data?.name || 'New Department',
+        departmentCode: data?.departmentCode || 'DEPT',
+        location: data?.location || 'Main Building'
       };
       db.departments.push(newDept);
       saveStorageData(db);
-      return {
-        data: newDept,
-        status: 201,
-        statusText: 'Created',
-        headers: {},
-        config
-      };
+      return Promise.resolve({ data: newDept, status: 201, statusText: 'Created' });
     }
-    return {
-      data: db.departments,
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config
-    };
+    return Promise.resolve({ data: db.departments, status: 200, statusText: 'OK' });
   }
 
   // Employees
-  if (url.includes('/employees')) {
-    if (method === 'post') {
+  if (cleanUrl.includes('/employees')) {
+    if (cleanMethod === 'post') {
       const newEmp = {
         id: `emp-${Date.now()}`,
         employeeId: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
-        fullName: body.fullName || 'New Staff',
-        email: body.email || 'staff@employeehub.com',
-        role: body.role || 'EMPLOYEE',
-        phone: body.phone || '+1 555-0000',
-        departmentId: body.departmentId || 'dept-101',
+        fullName: data?.fullName || 'New Staff',
+        email: data?.email || 'staff@employeehub.com',
+        role: data?.role || 'EMPLOYEE',
+        phone: data?.phone || '+1 555-0000',
+        departmentId: data?.departmentId || 'dept-101',
         joiningDate: new Date().toISOString().split('T')[0],
         employmentStatus: 'Active'
       };
       db.employees.push(newEmp);
       saveStorageData(db);
-      return {
-        data: newEmp,
-        status: 201,
-        statusText: 'Created',
-        headers: {},
-        config
-      };
+      return Promise.resolve({ data: newEmp, status: 201, statusText: 'Created' });
     }
-    return {
-      data: db.employees,
-      status: 200,
-      statusText: 'OK',
-      headers: {},
-      config
-    };
+    return Promise.resolve({ data: db.employees, status: 200, statusText: 'OK' });
   }
 
   // Reports Summary
-  if (url.includes('/reports')) {
-    return {
+  if (cleanUrl.includes('/reports')) {
+    return Promise.resolve({
       data: {
         totalEmployees: db.employees.length,
         totalDepartments: db.departments.length,
@@ -332,68 +246,36 @@ const handleMockRequest = async (config: any) => {
         todayPresent: db.attendances.length
       },
       status: 200,
-      statusText: 'OK',
-      headers: {},
-      config
-    };
+      statusText: 'OK'
+    });
   }
 
-  return {
-    data: [],
-    status: 200,
-    statusText: 'OK',
-    headers: {},
-    config
-  };
+  return Promise.resolve({ data: [], status: 200, statusText: 'OK' });
 };
 
-const API = axios.create({
-  baseURL: '/api',
-  adapter: async (config) => {
-    // Hosted on GitHub Pages or static environment: execute mock adapter directly in memory
-    if (window.location.hostname.includes('github.io') || window.location.hostname !== 'localhost') {
-      return handleMockRequest(config);
-    }
-
-    // Attempt network request for local dev with backend server
-    try {
-      const defaultAdapter = axios.defaults.adapter;
-      if (typeof defaultAdapter === 'function') {
-        return await defaultAdapter(config);
-      }
-    } catch (e) {
-      // Fallback
-    }
-
-    return handleMockRequest(config);
-  }
-});
-
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('employeehub_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Extra response interceptor fallback
-API.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const isStaticOrOffline = !error.response ||
-      error.response.status === 404 ||
-      error.response.status === 405 ||
-      error.response.status === 403 ||
-      error.response.status === 502 ||
-      window.location.hostname.includes('github.io');
-
-    if (isStaticOrOffline) {
-      return handleMockRequest(error.config || {});
-    }
-
-    return Promise.reject(error);
-  }
-);
+// Exported API wrapper object that intercepts calls before network XHR
+const API = {
+  get: (url: string, config?: any) => {
+    if (isStaticHost()) return handleMockRouter('get', url);
+    return realAxios.get(url, config).catch(() => handleMockRouter('get', url));
+  },
+  post: (url: string, data?: any, config?: any) => {
+    if (isStaticHost()) return handleMockRouter('post', url, data);
+    return realAxios.post(url, data, config).catch(() => handleMockRouter('post', url, data));
+  },
+  patch: (url: string, data?: any, config?: any) => {
+    if (isStaticHost()) return handleMockRouter('patch', url, data);
+    return realAxios.patch(url, data, config).catch(() => handleMockRouter('patch', url, data));
+  },
+  put: (url: string, data?: any, config?: any) => {
+    if (isStaticHost()) return handleMockRouter('put', url, data);
+    return realAxios.put(url, data, config).catch(() => handleMockRouter('put', url, data));
+  },
+  delete: (url: string, config?: any) => {
+    if (isStaticHost()) return handleMockRouter('delete', url);
+    return realAxios.delete(url, config).catch(() => handleMockRouter('delete', url));
+  },
+  interceptors: realAxios.interceptors
+};
 
 export default API;
