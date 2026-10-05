@@ -1,23 +1,14 @@
 import axios from 'axios';
 
-const API = axios.create({
-  baseURL: '/api',
-});
-
-API.interceptors.request.use((config) => {
-  const token = localStorage.getItem('employeehub_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
 // Seed dataset for static hosting fallback (e.g. GitHub Pages)
 const getStorageData = () => {
   const stored = localStorage.getItem('employeehub_mock_db');
   if (stored) {
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      if (parsed && Array.isArray(parsed.employees) && Array.isArray(parsed.leave_requests)) {
+        return parsed;
+      }
     } catch (e) {
       // Fallback if parsing fails
     }
@@ -48,9 +39,9 @@ const getStorageData = () => {
       { id: 'lb-emp-001-earned', employeeId: 'emp-001', leaveType: 'Earned Leave', allocatedDays: 15, usedDays: 0, remainingDays: 15, year: 2026 }
     ],
     leave_requests: [
-      { id: 'req-101', employeeId: 'emp-003', leaveType: 'Casual Leave', startDate: '2026-10-15', endDate: '2026-10-16', numberOfDays: 2, reason: 'Family function attendance', status: 'Pending', approverId: 'emp-002', createdAt: '2026-10-05T15:45:28.037Z' },
-      { id: 'req-102', employeeId: 'emp-004', leaveType: 'Sick Leave', startDate: '2026-10-02', endDate: '2026-10-02', numberOfDays: 1, reason: 'Doctor appointment', status: 'Approved', approverId: 'emp-002', managerComments: 'Approved. Take care!', createdAt: '2026-10-05T15:45:28.038Z' },
-      { id: 'req-103', employeeId: 'emp-003', leaveType: 'Earned Leave', startDate: '2026-09-01', endDate: '2026-09-05', numberOfDays: 5, reason: 'Annual vacation', status: 'Approved', approverId: 'emp-002', managerComments: 'Approved. Enjoy!', createdAt: '2026-10-05T15:45:28.038Z' }
+      { id: 'req-101', employeeId: 'emp-003', employeeName: 'John Doe (Employee)', leaveType: 'Casual Leave', startDate: '2026-10-15', endDate: '2026-10-16', numberOfDays: 2, reason: 'Family function attendance', status: 'Pending', approverId: 'emp-002', createdAt: '2026-10-05T15:45:28.037Z' },
+      { id: 'req-102', employeeId: 'emp-004', employeeName: 'Emily Watson', leaveType: 'Sick Leave', startDate: '2026-10-02', endDate: '2026-10-02', numberOfDays: 1, reason: 'Doctor appointment', status: 'Approved', approverId: 'emp-002', managerComments: 'Approved. Take care!', createdAt: '2026-10-05T15:45:28.038Z' },
+      { id: 'req-103', employeeId: 'emp-003', employeeName: 'John Doe (Employee)', leaveType: 'Earned Leave', startDate: '2026-09-01', endDate: '2026-09-05', numberOfDays: 5, reason: 'Annual vacation', status: 'Approved', approverId: 'emp-002', managerComments: 'Approved. Enjoy!', createdAt: '2026-10-05T15:45:28.038Z' }
     ],
     attendances: [
       { id: 'att-101', employeeId: 'emp-003', date: '2026-10-05', checkIn: '2026-10-05 09:15:00', checkOut: '2026-10-05 17:30:00', status: 'Present', workingHours: 8.25, remarks: 'On time' },
@@ -66,12 +57,330 @@ const saveStorageData = (data: any) => {
   localStorage.setItem('employeehub_mock_db', JSON.stringify(data));
 };
 
-// Response interceptor: Handles static site mode seamlessly when no backend API server is available
-// Response interceptor: Handles static site mode seamlessly when no backend API server is available
+const handleMockRequest = async (config: any) => {
+  const url = config.url || '';
+  const method = (config.method || 'get').toLowerCase();
+  
+  let body: any = {};
+  if (config.data) {
+    if (typeof config.data === 'string') {
+      try {
+        body = JSON.parse(config.data);
+      } catch (e) {
+        body = {};
+      }
+    } else if (typeof config.data === 'object') {
+      body = config.data;
+    }
+  }
+
+  const db = getStorageData();
+
+  // Auth Login
+  if (url.includes('/auth/login') && method === 'post') {
+    const inputEmail = (body.email || '').trim().toLowerCase();
+    let emp = db.employees.find((e: any) => e.email.toLowerCase() === inputEmail);
+    
+    if (!emp) {
+      if (inputEmail.includes('hr')) {
+        emp = db.employees.find((e: any) => e.role === 'HR_ADMIN');
+      } else if (inputEmail.includes('manager')) {
+        emp = db.employees.find((e: any) => e.role === 'MANAGER');
+      } else {
+        emp = db.employees.find((e: any) => e.role === 'EMPLOYEE') || db.employees[2];
+      }
+    }
+
+    const token = `mock-token-${emp.id}`;
+    localStorage.setItem('employeehub_mock_user', JSON.stringify(emp));
+    return {
+      data: {
+        token,
+        user: emp
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    };
+  }
+
+  // Auth Me
+  if (url.includes('/auth/me') && method === 'get') {
+    const storedUser = localStorage.getItem('employeehub_mock_user');
+    const user = storedUser ? JSON.parse(storedUser) : db.employees[2];
+    return {
+      data: { user },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    };
+  }
+
+  // Leave Balances
+  if (url.includes('/leave/balances')) {
+    const storedUser = localStorage.getItem('employeehub_mock_user');
+    const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
+    const balances = db.leave_balances.filter((b: any) => b.employeeId === currentUser.id);
+    return {
+      data: balances.length > 0 ? balances : db.leave_balances.slice(0, 3),
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    };
+  }
+
+  // Leave Requests / Leave Apply
+  if (url.includes('/leave/requests') || url.includes('/leave/apply')) {
+    if (method === 'get') {
+      return {
+        data: db.leave_requests,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config
+      };
+    }
+    if (method === 'post') {
+      const storedUser = localStorage.getItem('employeehub_mock_user');
+      const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
+      
+      let numDays = body.numberOfDays || 1;
+      if (body.startDate && body.endDate) {
+        const start = new Date(body.startDate);
+        const end = new Date(body.endDate);
+        const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
+        if (diff > 0) numDays = diff;
+      }
+
+      const newReq = {
+        id: `req-${Date.now()}`,
+        employeeId: currentUser.id,
+        employeeName: currentUser.fullName || 'John Doe (Employee)',
+        leaveType: body.leaveType || 'Casual Leave',
+        startDate: body.startDate || new Date().toISOString().split('T')[0],
+        endDate: body.endDate || new Date().toISOString().split('T')[0],
+        numberOfDays: numDays,
+        reason: body.reason || 'Leave request',
+        status: 'Pending',
+        createdAt: new Date().toISOString()
+      };
+
+      db.leave_requests.unshift(newReq);
+      saveStorageData(db);
+
+      return {
+        data: newReq,
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        config
+      };
+    }
+    if (method === 'patch') {
+      const reqId = url.split('/leave/requests/')[1]?.split('/')[0];
+      const action = url.includes('/approve') ? 'Approved' : url.includes('/reject') ? 'Rejected' : 'Cancelled';
+      const targetReq = db.leave_requests.find((r: any) => r.id === reqId);
+      if (targetReq) {
+        targetReq.status = action;
+        if (body.comments) targetReq.managerComments = body.comments;
+        saveStorageData(db);
+      }
+      return {
+        data: targetReq || { status: action },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config
+      };
+    }
+  }
+
+  // Attendance
+  if (url.includes('/attendance')) {
+    if (url.includes('/check-in') && method === 'post') {
+      const storedUser = localStorage.getItem('employeehub_mock_user');
+      const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
+      const newAtt = {
+        id: `att-${Date.now()}`,
+        employeeId: currentUser.id,
+        date: new Date().toISOString().split('T')[0],
+        checkIn: new Date().toLocaleTimeString(),
+        status: 'Present',
+        workingHours: 0,
+        remarks: body.remarks || 'Checked in via Web App'
+      };
+      db.attendances.unshift(newAtt);
+      saveStorageData(db);
+      return {
+        data: newAtt,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config
+      };
+    }
+    if (url.includes('/check-out') && method === 'post') {
+      const storedUser = localStorage.getItem('employeehub_mock_user');
+      const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
+      const todayStr = new Date().toISOString().split('T')[0];
+      let att = db.attendances.find((a: any) => a.employeeId === currentUser.id && a.date === todayStr);
+      if (att) {
+        att.checkOut = new Date().toLocaleTimeString();
+        att.workingHours = 8;
+        saveStorageData(db);
+      }
+      return {
+        data: att || { status: 'Checked Out' },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config
+      };
+    }
+    if (url.includes('/today')) {
+      const storedUser = localStorage.getItem('employeehub_mock_user');
+      const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
+      const todayAtt = db.attendances.find((a: any) => a.employeeId === currentUser.id) || null;
+      return {
+        data: todayAtt,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config
+      };
+    }
+    return {
+      data: db.attendances,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    };
+  }
+
+  // Departments
+  if (url.includes('/departments')) {
+    if (method === 'post') {
+      const newDept = {
+        id: `dept-${Date.now()}`,
+        name: body.name || 'New Department',
+        departmentCode: body.departmentCode || 'DEPT',
+        location: body.location || 'Main Building'
+      };
+      db.departments.push(newDept);
+      saveStorageData(db);
+      return {
+        data: newDept,
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        config
+      };
+    }
+    return {
+      data: db.departments,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    };
+  }
+
+  // Employees
+  if (url.includes('/employees')) {
+    if (method === 'post') {
+      const newEmp = {
+        id: `emp-${Date.now()}`,
+        employeeId: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+        fullName: body.fullName || 'New Staff',
+        email: body.email || 'staff@employeehub.com',
+        role: body.role || 'EMPLOYEE',
+        phone: body.phone || '+1 555-0000',
+        departmentId: body.departmentId || 'dept-101',
+        joiningDate: new Date().toISOString().split('T')[0],
+        employmentStatus: 'Active'
+      };
+      db.employees.push(newEmp);
+      saveStorageData(db);
+      return {
+        data: newEmp,
+        status: 201,
+        statusText: 'Created',
+        headers: {},
+        config
+      };
+    }
+    return {
+      data: db.employees,
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    };
+  }
+
+  // Reports Summary
+  if (url.includes('/reports')) {
+    return {
+      data: {
+        totalEmployees: db.employees.length,
+        totalDepartments: db.departments.length,
+        pendingLeaves: db.leave_requests.filter((r: any) => r.status === 'Pending').length,
+        todayPresent: db.attendances.length
+      },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    };
+  }
+
+  return {
+    data: [],
+    status: 200,
+    statusText: 'OK',
+    headers: {},
+    config
+  };
+};
+
+const API = axios.create({
+  baseURL: '/api',
+  adapter: async (config) => {
+    // Hosted on GitHub Pages or static environment: execute mock adapter directly in memory
+    if (window.location.hostname.includes('github.io') || window.location.hostname !== 'localhost') {
+      return handleMockRequest(config);
+    }
+
+    // Attempt network request for local dev with backend server
+    try {
+      const defaultAdapter = axios.defaults.adapter;
+      if (typeof defaultAdapter === 'function') {
+        return await defaultAdapter(config);
+      }
+    } catch (e) {
+      // Fallback
+    }
+
+    return handleMockRequest(config);
+  }
+});
+
+API.interceptors.request.use((config) => {
+  const token = localStorage.getItem('employeehub_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Extra response interceptor fallback
 API.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Check if running on static host (GitHub Pages) or if server API returned non-2xx error
     const isStaticOrOffline = !error.response ||
       error.response.status === 404 ||
       error.response.status === 405 ||
@@ -80,294 +389,7 @@ API.interceptors.response.use(
       window.location.hostname.includes('github.io');
 
     if (isStaticOrOffline) {
-      const url = error.config?.url || '';
-      const method = (error.config?.method || 'get').toLowerCase();
-      
-      let body: any = {};
-      if (error.config && error.config.data) {
-        if (typeof error.config.data === 'string') {
-          try {
-            body = JSON.parse(error.config.data);
-          } catch (e) {
-            body = {};
-          }
-        } else if (typeof error.config.data === 'object') {
-          body = error.config.data;
-        }
-      }
-
-      const db = getStorageData();
-
-      // Auth Login
-      if (url.includes('/auth/login') && method === 'post') {
-        const inputEmail = (body.email || '').trim().toLowerCase();
-        let emp = db.employees.find((e: any) => e.email.toLowerCase() === inputEmail);
-        
-        if (!emp) {
-          if (inputEmail.includes('hr')) {
-            emp = db.employees.find((e: any) => e.role === 'HR_ADMIN');
-          } else if (inputEmail.includes('manager')) {
-            emp = db.employees.find((e: any) => e.role === 'MANAGER');
-          } else {
-            emp = db.employees.find((e: any) => e.role === 'EMPLOYEE') || db.employees[2];
-          }
-        }
-
-        if (emp) {
-          const token = `mock-token-${emp.id}`;
-          localStorage.setItem('employeehub_mock_user', JSON.stringify(emp));
-          return {
-            data: {
-              token,
-              user: emp
-            },
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: error.config
-          };
-        }
-      }
-
-      // Auth Me
-      if (url.includes('/auth/me') && method === 'get') {
-        const storedUser = localStorage.getItem('employeehub_mock_user');
-        const user = storedUser ? JSON.parse(storedUser) : db.employees[2]; // Default to employee
-        return {
-          data: { user },
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: error.config
-        };
-      }
-
-      // Leave Balances
-      if (url.includes('/leave/balances')) {
-        const storedUser = localStorage.getItem('employeehub_mock_user');
-        const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
-        const balances = db.leave_balances.filter((b: any) => b.employeeId === currentUser.id);
-        return {
-          data: balances.length > 0 ? balances : db.leave_balances.slice(0, 3),
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: error.config
-        };
-      }
-
-      // Leave Requests / Leave Apply
-      if (url.includes('/leave/requests') || url.includes('/leave/apply')) {
-        if (method === 'get') {
-          return {
-            data: db.leave_requests,
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: error.config
-          };
-        }
-        if (method === 'post') {
-          const storedUser = localStorage.getItem('employeehub_mock_user');
-          const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
-          
-          let numDays = body.numberOfDays || 1;
-          if (body.startDate && body.endDate) {
-            const start = new Date(body.startDate);
-            const end = new Date(body.endDate);
-            const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
-            if (diff > 0) numDays = diff;
-          }
-
-          const newReq = {
-            id: `req-${Date.now()}`,
-            employeeId: currentUser.id,
-            employeeName: currentUser.fullName || 'John Doe (Employee)',
-            leaveType: body.leaveType || 'Casual Leave',
-            startDate: body.startDate || new Date().toISOString().split('T')[0],
-            endDate: body.endDate || new Date().toISOString().split('T')[0],
-            numberOfDays: numDays,
-            reason: body.reason || 'Leave request',
-            status: 'Pending',
-            createdAt: new Date().toISOString()
-          };
-          db.leave_requests.unshift(newReq);
-          saveStorageData(db);
-          return {
-            data: newReq,
-            status: 201,
-            statusText: 'Created',
-            headers: {},
-            config: error.config
-          };
-        }
-        if (method === 'patch') {
-          const reqId = url.split('/leave/requests/')[1]?.split('/')[0];
-          const action = url.includes('/approve') ? 'Approved' : url.includes('/reject') ? 'Rejected' : 'Cancelled';
-          const targetReq = db.leave_requests.find((r: any) => r.id === reqId);
-          if (targetReq) {
-            targetReq.status = action;
-            if (body.comments) targetReq.managerComments = body.comments;
-            saveStorageData(db);
-          }
-          return {
-            data: targetReq || { status: action },
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: error.config
-          };
-        }
-      }
-
-      // Attendance
-      if (url.includes('/attendance')) {
-        if (url.includes('/check-in') && method === 'post') {
-          const storedUser = localStorage.getItem('employeehub_mock_user');
-          const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
-          const newAtt = {
-            id: `att-${Date.now()}`,
-            employeeId: currentUser.id,
-            date: new Date().toISOString().split('T')[0],
-            checkIn: new Date().toLocaleTimeString(),
-            status: 'Present',
-            workingHours: 0,
-            remarks: body.remarks || 'Checked in via Web App'
-          };
-          db.attendances.unshift(newAtt);
-          saveStorageData(db);
-          return {
-            data: newAtt,
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: error.config
-          };
-        }
-        if (url.includes('/check-out') && method === 'post') {
-          const storedUser = localStorage.getItem('employeehub_mock_user');
-          const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
-          const todayStr = new Date().toISOString().split('T')[0];
-          let att = db.attendances.find((a: any) => a.employeeId === currentUser.id && a.date === todayStr);
-          if (att) {
-            att.checkOut = new Date().toLocaleTimeString();
-            att.workingHours = 8;
-            saveStorageData(db);
-          }
-          return {
-            data: att || { status: 'Checked Out' },
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: error.config
-          };
-        }
-        if (url.includes('/today')) {
-          const storedUser = localStorage.getItem('employeehub_mock_user');
-          const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
-          const todayAtt = db.attendances.find((a: any) => a.employeeId === currentUser.id) || null;
-          return {
-            data: todayAtt,
-            status: 200,
-            statusText: 'OK',
-            headers: {},
-            config: error.config
-          };
-        }
-        return {
-          data: db.attendances,
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: error.config
-        };
-      }
-
-      // Departments
-      if (url.includes('/departments')) {
-        if (method === 'post') {
-          const newDept = {
-            id: `dept-${Date.now()}`,
-            name: body.name || 'New Department',
-            departmentCode: body.departmentCode || 'DEPT',
-            location: body.location || 'Main Building'
-          };
-          db.departments.push(newDept);
-          saveStorageData(db);
-          return {
-            data: newDept,
-            status: 201,
-            statusText: 'Created',
-            headers: {},
-            config: error.config
-          };
-        }
-        return {
-          data: db.departments,
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: error.config
-        };
-      }
-
-      // Employees
-      if (url.includes('/employees')) {
-        if (method === 'post') {
-          const newEmp = {
-            id: `emp-${Date.now()}`,
-            employeeId: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
-            fullName: body.fullName || 'New Staff',
-            email: body.email || 'staff@employeehub.com',
-            role: body.role || 'EMPLOYEE',
-            phone: body.phone || '+1 555-0000',
-            departmentId: body.departmentId || 'dept-101',
-            joiningDate: new Date().toISOString().split('T')[0],
-            employmentStatus: 'Active'
-          };
-          db.employees.push(newEmp);
-          saveStorageData(db);
-          return {
-            data: newEmp,
-            status: 201,
-            statusText: 'Created',
-            headers: {},
-            config: error.config
-          };
-        }
-        return {
-          data: db.employees,
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: error.config
-        };
-      }
-
-      // Reports Summary
-      if (url.includes('/reports')) {
-        return {
-          data: {
-            totalEmployees: db.employees.length,
-            totalDepartments: db.departments.length,
-            pendingLeaves: db.leave_requests.filter((r: any) => r.status === 'Pending').length,
-            todayPresent: db.attendances.length
-          },
-          status: 200,
-          statusText: 'OK',
-          headers: {},
-          config: error.config
-        };
-      }
-
-      // Fallback for any other endpoint in static mode
-      return {
-        data: [],
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: error.config
-      };
+      return handleMockRequest(error.config || {});
     }
 
     return Promise.reject(error);
@@ -375,4 +397,3 @@ API.interceptors.response.use(
 );
 
 export default API;
-
