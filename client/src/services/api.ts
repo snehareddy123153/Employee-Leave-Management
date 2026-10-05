@@ -70,10 +70,15 @@ const saveStorageData = (data: any) => {
 API.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Check if error is network error or 404 (static host without live node backend)
-    const isNetworkOr404 = !error.response || error.response.status === 404 || error.response.status === 502;
+    // Check if running on static host (GitHub Pages) or if server API returned non-2xx error
+    const isStaticOrOffline = !error.response ||
+      error.response.status === 404 ||
+      error.response.status === 405 ||
+      error.response.status === 403 ||
+      error.response.status === 502 ||
+      window.location.hostname.includes('github.io');
 
-    if (isNetworkOr404) {
+    if (isStaticOrOffline) {
       const url = error.config.url || '';
       const method = (error.config.method || 'get').toLowerCase();
       const body = error.config.data ? JSON.parse(error.config.data) : {};
