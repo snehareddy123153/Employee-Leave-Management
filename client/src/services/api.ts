@@ -67,6 +67,7 @@ const saveStorageData = (data: any) => {
 };
 
 // Response interceptor: Handles static site mode seamlessly when no backend API server is available
+// Response interceptor: Handles static site mode seamlessly when no backend API server is available
 API.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -79,14 +80,39 @@ API.interceptors.response.use(
       window.location.hostname.includes('github.io');
 
     if (isStaticOrOffline) {
-      const url = error.config.url || '';
-      const method = (error.config.method || 'get').toLowerCase();
-      const body = error.config.data ? JSON.parse(error.config.data) : {};
+      const url = error.config?.url || '';
+      const method = (error.config?.method || 'get').toLowerCase();
+      
+      let body: any = {};
+      if (error.config && error.config.data) {
+        if (typeof error.config.data === 'string') {
+          try {
+            body = JSON.parse(error.config.data);
+          } catch (e) {
+            body = {};
+          }
+        } else if (typeof error.config.data === 'object') {
+          body = error.config.data;
+        }
+      }
+
       const db = getStorageData();
 
       // Auth Login
       if (url.includes('/auth/login') && method === 'post') {
-        const emp = db.employees.find((e: any) => e.email.toLowerCase() === body.email?.toLowerCase());
+        const inputEmail = (body.email || '').trim().toLowerCase();
+        let emp = db.employees.find((e: any) => e.email.toLowerCase() === inputEmail);
+        
+        if (!emp) {
+          if (inputEmail.includes('hr')) {
+            emp = db.employees.find((e: any) => e.role === 'HR_ADMIN');
+          } else if (inputEmail.includes('manager')) {
+            emp = db.employees.find((e: any) => e.role === 'MANAGER');
+          } else {
+            emp = db.employees.find((e: any) => e.role === 'EMPLOYEE') || db.employees[2];
+          }
+        }
+
         if (emp) {
           const token = `mock-token-${emp.id}`;
           localStorage.setItem('employeehub_mock_user', JSON.stringify(emp));
@@ -100,13 +126,6 @@ API.interceptors.response.use(
             headers: {},
             config: error.config
           };
-        } else {
-          return Promise.reject({
-            response: {
-              data: { error: 'Invalid organization email or password.' },
-              status: 400
-            }
-          });
         }
       }
 
@@ -129,7 +148,7 @@ API.interceptors.response.use(
         const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
         const balances = db.leave_balances.filter((b: any) => b.employeeId === currentUser.id);
         return {
-          data: balances,
+          data: balances.length > 0 ? balances : db.leave_balances.slice(0, 3),
           status: 200,
           statusText: 'OK',
           headers: {},
@@ -137,8 +156,8 @@ API.interceptors.response.use(
         };
       }
 
-      // Leave Requests
-      if (url.includes('/leave/requests')) {
+      // Leave Requests / Leave Apply
+      if (url.includes('/leave/requests') || url.includes('/leave/apply')) {
         if (method === 'get') {
           return {
             data: db.leave_requests,
@@ -172,6 +191,23 @@ API.interceptors.response.use(
             config: error.config
           };
         }
+        if (method === 'patch') {
+          const reqId = url.split('/leave/requests/')[1]?.split('/')[0];
+          const action = url.includes('/approve') ? 'Approved' : url.includes('/reject') ? 'Rejected' : 'Cancelled';
+          const targetReq = db.leave_requests.find((r: any) => r.id === reqId);
+          if (targetReq) {
+            targetReq.status = action;
+            if (body.comments) targetReq.managerComments = body.comments;
+            saveStorageData(db);
+          }
+          return {
+            data: targetReq || { status: action },
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config: error.config
+          };
+        }
       }
 
       // Attendance
@@ -186,12 +222,42 @@ API.interceptors.response.use(
             checkIn: new Date().toLocaleTimeString(),
             status: 'Present',
             workingHours: 0,
-            remarks: 'Checked in via Web App'
+            remarks: body.remarks || 'Checked in via Web App'
           };
           db.attendances.unshift(newAtt);
           saveStorageData(db);
           return {
             data: newAtt,
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config: error.config
+          };
+        }
+        if (url.includes('/check-out') && method === 'post') {
+          const storedUser = localStorage.getItem('employeehub_mock_user');
+          const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
+          const todayStr = new Date().toISOString().split('T')[0];
+          let att = db.attendances.find((a: any) => a.employeeId === currentUser.id && a.date === todayStr);
+          if (att) {
+            att.checkOut = new Date().toLocaleTimeString();
+            att.workingHours = 8;
+            saveStorageData(db);
+          }
+          return {
+            data: att || { status: 'Checked Out' },
+            status: 200,
+            statusText: 'OK',
+            headers: {},
+            config: error.config
+          };
+        }
+        if (url.includes('/today')) {
+          const storedUser = localStorage.getItem('employeehub_mock_user');
+          const currentUser = storedUser ? JSON.parse(storedUser) : db.employees[2];
+          const todayAtt = db.attendances.find((a: any) => a.employeeId === currentUser.id) || null;
+          return {
+            data: todayAtt,
             status: 200,
             statusText: 'OK',
             headers: {},
@@ -209,6 +275,23 @@ API.interceptors.response.use(
 
       // Departments
       if (url.includes('/departments')) {
+        if (method === 'post') {
+          const newDept = {
+            id: `dept-${Date.now()}`,
+            name: body.name || 'New Department',
+            departmentCode: body.departmentCode || 'DEPT',
+            location: body.location || 'Main Building'
+          };
+          db.departments.push(newDept);
+          saveStorageData(db);
+          return {
+            data: newDept,
+            status: 201,
+            statusText: 'Created',
+            headers: {},
+            config: error.config
+          };
+        }
         return {
           data: db.departments,
           status: 200,
@@ -220,6 +303,28 @@ API.interceptors.response.use(
 
       // Employees
       if (url.includes('/employees')) {
+        if (method === 'post') {
+          const newEmp = {
+            id: `emp-${Date.now()}`,
+            employeeId: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+            fullName: body.fullName || 'New Staff',
+            email: body.email || 'staff@employeehub.com',
+            role: body.role || 'EMPLOYEE',
+            phone: body.phone || '+1 555-0000',
+            departmentId: body.departmentId || 'dept-101',
+            joiningDate: new Date().toISOString().split('T')[0],
+            employmentStatus: 'Active'
+          };
+          db.employees.push(newEmp);
+          saveStorageData(db);
+          return {
+            data: newEmp,
+            status: 201,
+            statusText: 'Created',
+            headers: {},
+            config: error.config
+          };
+        }
         return {
           data: db.employees,
           status: 200,
@@ -244,6 +349,15 @@ API.interceptors.response.use(
           config: error.config
         };
       }
+
+      // Fallback for any other endpoint in static mode
+      return {
+        data: [],
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: error.config
+      };
     }
 
     return Promise.reject(error);
@@ -251,3 +365,4 @@ API.interceptors.response.use(
 );
 
 export default API;
+
