@@ -83,7 +83,7 @@ export const HrDashboard: React.FC = () => {
                 <td style={{ fontWeight: 600 }}>{d.name}</td>
                 <td><span className="badge badge-cancelled">{d.departmentCode}</span></td>
                 <td>{d.location}</td>
-                <td>{d.employeeCount || 0} Employees</td>
+                <td>{employees.filter((e) => e.departmentId === d.id).length} Employees</td>
               </tr>
             ))}
           </tbody>

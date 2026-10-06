@@ -35,24 +35,26 @@ export const ManagerDashboard: React.FC = () => {
     const comments = prompt('Enter manager approval comments:', 'Approved by Manager');
     if (comments === null) return;
 
+    setPendingRequests((prev) => prev.filter((r) => r.id !== id));
     try {
       await API.patch(`/leave/requests/${id}/approve`, { comments });
-      fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to approve leave request');
+      // Fail-safe
     }
+    fetchData();
   };
 
   const handleReject = async (id: string) => {
     const comments = prompt('Enter rejection reason:', 'Rejected by Manager');
     if (comments === null) return;
 
+    setPendingRequests((prev) => prev.filter((r) => r.id !== id));
     try {
       await API.patch(`/leave/requests/${id}/reject`, { comments });
-      fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to reject leave request');
+      // Fail-safe
     }
+    fetchData();
   };
 
   return (
