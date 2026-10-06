@@ -33,8 +33,8 @@ const getStorageData = () => {
       { id: 'req-103', employeeId: 'emp-003', employeeName: 'John Doe (Employee)', leaveType: 'Earned Leave', startDate: '2026-09-01', endDate: '2026-09-05', numberOfDays: 5, reason: 'Annual vacation', status: 'Approved', approverId: 'emp-002', managerComments: 'Approved. Enjoy!', createdAt: '2026-10-05T15:45:28.038Z' }
     ],
     attendances: [
-      { id: 'att-101', employeeId: 'emp-003', date: '2026-10-05', checkIn: '2026-10-05 09:15:00', checkOut: '2026-10-05 17:30:00', status: 'Present', workingHours: 8.25, remarks: 'On time' },
-      { id: 'att-102', employeeId: 'emp-004', date: '2026-10-05', checkIn: '2026-10-05 09:45:00', checkOut: '2026-10-05 18:00:00', status: 'Late', workingHours: 8.25, remarks: 'Traffic delay' }
+      { id: 'att-101', employeeId: 'emp-003', date: '2026-10-05', checkIn: '2026-10-05T09:15:00', checkOut: '2026-10-05T17:30:00', status: 'Present', workingHours: 8.25, remarks: 'On time' },
+      { id: 'att-102', employeeId: 'emp-004', date: '2026-10-05', checkIn: '2026-10-05T09:45:00', checkOut: '2026-10-05T18:00:00', status: 'Late', workingHours: 8.25, remarks: 'Traffic delay' }
     ]
   };
 

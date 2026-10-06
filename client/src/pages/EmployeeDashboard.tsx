@@ -19,6 +19,17 @@ export const EmployeeDashboard: React.FC = () => {
   const [reason, setReason] = useState('');
   const [submitError, setSubmitError] = useState('');
 
+  const formatTime = (timeStr?: string) => {
+    if (!timeStr) return '';
+    if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
+    const isoStr = timeStr.includes(' ') ? timeStr.replace(' ', 'T') : timeStr;
+    const d = new Date(isoStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return timeStr;
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -172,14 +183,14 @@ export const EmployeeDashboard: React.FC = () => {
               <strong style={{ fontSize: '0.95rem' }}>Today's Attendance Status: </strong>
               <span>
                 {todayAttendance
-                  ? `Checked In at ${new Date(todayAttendance.checkIn!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} (${todayAttendance.status})`
+                  ? `Checked In at ${formatTime(todayAttendance.checkIn)} (${todayAttendance.status})`
                   : 'Not Checked In Yet'}
               </span>
             </div>
           </div>
           {todayAttendance?.checkOut && (
             <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-              Checked Out: {new Date(todayAttendance.checkOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({todayAttendance.workingHours} hrs)
+              Checked Out: {formatTime(todayAttendance.checkOut)} ({todayAttendance.workingHours} hrs)
             </span>
           )}
         </div>
