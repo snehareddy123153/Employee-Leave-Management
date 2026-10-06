@@ -1,19 +1,8 @@
 import axios from 'axios';
 
 // Default mock database seed for static hosting (e.g. GitHub Pages)
+// Default mock database seed for static hosting (e.g. GitHub Pages)
 const getStorageData = () => {
-  const stored = localStorage.getItem('employeehub_mock_db');
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (parsed && Array.isArray(parsed.employees) && Array.isArray(parsed.leave_requests)) {
-        return parsed;
-      }
-    } catch (e) {
-      // Fallback
-    }
-  }
-
   const initialDb = {
     departments: [
       { id: 'dept-101', name: 'Engineering', departmentCode: 'ENG', location: 'Building A - Floor 3' },
@@ -49,6 +38,24 @@ const getStorageData = () => {
     ]
   };
 
+  const stored = localStorage.getItem('employeehub_mock_db');
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          departments: Array.isArray(parsed.departments) ? parsed.departments : initialDb.departments,
+          employees: Array.isArray(parsed.employees) ? parsed.employees : initialDb.employees,
+          leave_balances: Array.isArray(parsed.leave_balances) ? parsed.leave_balances : initialDb.leave_balances,
+          leave_requests: Array.isArray(parsed.leave_requests) ? parsed.leave_requests : initialDb.leave_requests,
+          attendances: Array.isArray(parsed.attendances) ? parsed.attendances : initialDb.attendances,
+        };
+      }
+    } catch (e) {
+      // Fallback
+    }
+  }
+
   localStorage.setItem('employeehub_mock_db', JSON.stringify(initialDb));
   return initialDb;
 };
@@ -70,7 +77,7 @@ realAxios.interceptors.request.use((config) => {
 });
 
 const isStaticHost = () => {
-  return window.location.hostname.includes('github.io') || window.location.hostname !== 'localhost';
+  return true; // Always enable mock router fallback when backend is un-reachable
 };
 
 // In-memory mock router for static hosting (GitHub Pages)
@@ -79,15 +86,21 @@ const handleMockRouter = (method: string, url: string, data?: any): Promise<any>
   const cleanMethod = method.toLowerCase();
   const db = getStorageData();
 
+  if (!Array.isArray(db.departments)) db.departments = [];
+  if (!Array.isArray(db.employees)) db.employees = [];
+  if (!Array.isArray(db.leave_balances)) db.leave_balances = [];
+  if (!Array.isArray(db.leave_requests)) db.leave_requests = [];
+  if (!Array.isArray(db.attendances)) db.attendances = [];
+
   // Auth Login
   if (cleanUrl.includes('/auth/login')) {
     const inputEmail = (data?.email || '').trim().toLowerCase();
     let emp = db.employees.find((e: any) => e.email.toLowerCase() === inputEmail);
     if (!emp) {
       if (inputEmail.includes('hr')) {
-        emp = db.employees.find((e: any) => e.role === 'HR_ADMIN');
+        emp = db.employees.find((e: any) => e.role === 'HR_ADMIN') || db.employees[0];
       } else if (inputEmail.includes('manager')) {
-        emp = db.employees.find((e: any) => e.role === 'MANAGER');
+        emp = db.employees.find((e: any) => e.role === 'MANAGER') || db.employees[1];
       } else {
         emp = db.employees.find((e: any) => e.role === 'EMPLOYEE') || db.employees[2];
       }
